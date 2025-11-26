@@ -63,6 +63,41 @@ class StockPrice(SoftDeleteModel):
         related_name="prices",
     )
 
+class Portfolio(SoftDeleteModel):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="portfolios",
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    TRANSACTION_TYPES = [
+        (LOW, "Low"),
+        (MEDIUM, "Medium"),
+        (HIGH, "High"),
+    ]
+    risk = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+
+
+class PortfolioComponent(SoftDeleteModel):
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.PROTECT,
+        related_name="components",
+    )
+    stock = models.ForeignKey(
+        Stock,
+        on_delete=models.PROTECT,
+        related_name="portfolio_components",
+    )
+    weight = models.DecimalField(max_digits=6, decimal_places=4)
+
+    class Meta(SoftDeleteModel.Meta):
+        unique_together = ("portfolio", "stock")
+
 
 class Order(SoftDeleteModel):
     ASSET_STOCK = "STOCK"
@@ -95,6 +130,14 @@ class Order(SoftDeleteModel):
         on_delete=models.PROTECT,
         related_name="orders",
     )
+    portfolio = models.ForeignKey(
+        Portfolio,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="orders",
+    )
+
     quantity = models.DecimalField(
         max_digits=14, decimal_places=4, null=True, blank=True
     )

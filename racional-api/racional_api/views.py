@@ -1,5 +1,5 @@
-from .models import Transaction, User
-from .serializers import DepositSerializer, StockOrderSerializer, UserSerializer
+from .models import Portfolio, Transaction, User
+from .serializers import DepositSerializer, PortfolioCreateSerializer, StockOrderSerializer, UserSerializer
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.response import Response
@@ -162,3 +162,35 @@ class StockOrderCreateView(generics.CreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+@extend_schema(
+    summary="Create a portfolio",
+    description=(
+        "Crea un portafolio seleccionando entre los stocks disponibles. "
+        "Los pesos de los componentes deben sumar 1."
+    ),
+    request=PortfolioCreateSerializer,
+    responses={201: PortfolioCreateSerializer},
+)
+class PortfolioCreateView(generics.CreateAPIView):
+    queryset = Portfolio.objects.filter(is_deleted=False)
+    serializer_class = PortfolioCreateSerializer
+
+
+@extend_schema(
+    summary="Get all portfolios of a user",
+    description="Given a user, gets all portfolios.",
+    request=PortfolioCreateSerializer,
+    responses={201: PortfolioCreateSerializer},
+)
+class PortfolioListView(generics.ListAPIView):
+    serializer_class = PortfolioCreateSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        
+        if not User.objects.filter(pk=user_id, is_deleted=False).exists():
+            return Portfolio.objects.none()
+        return Portfolio.objects.filter(user_id=user_id)
+

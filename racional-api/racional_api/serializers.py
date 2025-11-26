@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Stock, StockPrice, User, Transaction, Order
+from .models import Stock, StockPrice, User, Transaction, Order, Portfolio, PortfolioComponent, Stock
 from decimal import Decimal
 from django.db.models import Sum, Q
 
@@ -158,3 +158,62 @@ class StockOrderSerializer(serializers.ModelSerializer):
                 user.save(update_fields=["money", "updated_at"])
 
             raise e
+
+
+class PortfolioComponentInputSerializer(serializers.Serializer):
+    symbol = serializers.SlugRelatedField(
+        source="stock",
+        slug_field="symbol",
+        queryset=Stock.objects.filter(is_deleted=False),
+    )
+    weight = serializers.DecimalField(
+        max_digits=6,
+        decimal_places=4,
+        min_value=Decimal("0.001"),
+    )
+
+
+class PortfolioCreateSerializer(serializers.ModelSerializer):
+    components = PortfolioComponentInputSerializer(many=True)
+    user_id = serializers.PrimaryKeyRelatedField(
+        source="user", queryset=User.objects.filter(is_deleted=False), write_only=True
+    )
+    
+    class Meta:
+        model = Portfolio
+        fields = ["id", "user_id","name", "description", "risk", "components"]
+        read_only_fields = ["id"]
+
+    def validate_components(self, components):
+        if not components:
+            raise serializers.ValidationError("Portfolio must have at least one component.")
+
+        stock_ids = [c["stock"].id for c in components]
+        if len(stock_ids) != len(set(stock_ids)):
+            raise serializers.ValidationError("Each stock can appear only once in the portfolio.")
+
+        total_weight = sum((c["weight"] for c in components), Decimal("0"))
+        if total_weight != Decimal("1.0"):
+            raise serializers.ValidationError(
+                f"Weights must sum to 1. Current sum is {total_weight}."
+            )
+
+        return components
+
+    def create(self, validated_data):
+        components_data = validated_data.pop("components")
+
+        portfolio = Portfolio.objects.create(**validated_data)
+
+        PortfolioComponent.objects.bulk_create(
+            [
+                PortfolioComponent(
+                    portfolio=portfolio,
+                    stock=comp_data["stock"],
+                    weight=comp_data["weight"],
+                )
+                for comp_data in components_data
+            ]
+        )
+
+        return portfolio

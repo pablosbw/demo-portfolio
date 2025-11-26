@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import StockOrderCreateView, TransactionListView, WithdrawCreateView, DepositCreateView, UserDetailView, UserListCreateView
+from .views import PortfolioCreateView, PortfolioListView, StockOrderCreateView, TransactionListView, WithdrawCreateView, DepositCreateView, UserDetailView, UserListCreateView
 
 
 user_urls = [
@@ -17,8 +17,14 @@ orders_urls = [
     path("orders/stocks/", StockOrderCreateView.as_view(), name="stock-order-create"),
 ]
 
+stocks_urls = [
+    path("portfolios/", PortfolioCreateView.as_view(), name="portfolio-create"),
+    path("portfolios/<int:user_id>/", PortfolioListView.as_view(), name="portfolio-list"),
+]
+
 urlpatterns = [
     *user_urls,
     *transaction_urls, 
     *orders_urls,
+    *stocks_urls
 ]
