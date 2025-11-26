@@ -46,6 +46,64 @@ class Transaction(SoftDeleteModel):
     )
     
     execution_date = models.DateField(default=None)
-    
+    class Meta(SoftDeleteModel.Meta):
+        ordering = ["-created_at"]
+
+
+class Stock(SoftDeleteModel):
+    symbol = models.CharField(max_length=20)
+    name = models.CharField(max_length=200)
+
+class StockPrice(SoftDeleteModel):
+    value = models.FloatField(default=1.0)
+    date = models.DateTimeField()
+    stock = models.ForeignKey(
+        Stock,
+        on_delete=models.PROTECT,
+        related_name="prices",
+    )
+
+
+class Order(SoftDeleteModel):
+    ASSET_STOCK = "STOCK"
+    ASSET_PORTFOLIO = "PORTFOLIO"
+    ASSET_TYPES = [
+        (ASSET_STOCK, "Stock"),
+        (ASSET_PORTFOLIO, "Portfolio"),
+    ]
+
+    BUY = "BUY"
+    SELL = "SELL"
+    SIDE_TYPES = [
+        (BUY, "Buy"),
+        (SELL, "Sell"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="orders",
+    )
+
+    asset_type = models.CharField(max_length=20, choices=ASSET_TYPES, blank=True)
+    side = models.CharField(max_length=4, choices=SIDE_TYPES, blank=True)
+
+    stock = models.ForeignKey(
+        Stock,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="orders",
+    )
+    quantity = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True
+    )
+
+    execution_date = models.DateField(null=True, blank=True)
+
+    execution_price = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True
+    )
+
     class Meta(SoftDeleteModel.Meta):
         ordering = ["-created_at"]

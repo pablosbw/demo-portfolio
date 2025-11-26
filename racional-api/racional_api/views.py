@@ -1,5 +1,5 @@
 from .models import Transaction, User
-from .serializers import DepositSerializer, UserSerializer
+from .serializers import DepositSerializer, StockOrderSerializer, UserSerializer
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.response import Response
@@ -135,3 +135,30 @@ class TransactionListView(generics.ListAPIView):
         return Transaction.objects.filter(user_id=user_id)
 
 
+@extend_schema(
+    summary="Register a BUY or SELL order for a Stock",
+    description=(
+        "Creates an order of type BUY or SELL for a user on a specific stock. "
+        "This endpoint handles only stock trades (not portfolios)."
+    ),
+    request=StockOrderSerializer,
+    responses={201: StockOrderSerializer},
+)
+class StockOrderCreateView(generics.CreateAPIView):
+    serializer_class = StockOrderSerializer
+
+    def create(self, request, *args, **kwargs):
+        user_id = request.data.get("user_id")
+
+        if not User.objects.filter(pk=user_id, is_deleted=False).exists():
+            return Response(
+                {"detail": "User not found or deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data.copy()
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
