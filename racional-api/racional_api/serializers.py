@@ -34,16 +34,7 @@ class DepositSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
-    def _validate(self, data):
-        amount = data.get("amount", 0)
-        if amount <= 0:
-            raise serializers.ValidationError("Amount must be greater than zero.")
-        
-        transaction_type = data.get("transaction_type")
-        if transaction_type.lower() not in ("deposit", "withdraw"):
-            raise serializers.ValidationError("Invalid transaction type. Must be 'deposit' or 'withdraw'.")
-        
-        return data
+
 
     def _normalize_transaction_type(self, transaction_type):
         if not transaction_type:
@@ -58,15 +49,14 @@ class DepositSerializer(serializers.ModelSerializer):
         raise serializers.ValidationError("Invalid transaction type.")
 
     def create(self, data):
-        validated_data =self._validate(data)
-        user_id = validated_data.pop("user_id")
-        transaction_type_raw = validated_data.pop("transaction_type", None)
+        user_id = data.pop("user_id")
+        transaction_type_raw = data.pop("transaction_type", None)
         if transaction_type_raw is None:
             raise serializers.ValidationError("transaction_type is required.")
 
         transaction_type_norm = self._normalize_transaction_type(transaction_type_raw)
         user = User.objects.get(pk=user_id)
-        amount = validated_data.get("amount", 0)
+        amount = data.get("amount", 0)
         if transaction_type_norm == Transaction.DEPOSIT:
             user.money += amount
         elif transaction_type_norm == Transaction.WITHDRAW:
@@ -76,5 +66,5 @@ class DepositSerializer(serializers.ModelSerializer):
         return Transaction.objects.create(
             user=user,
             transaction_type=transaction_type_norm,
-            **validated_data,
+            **data,
         )
