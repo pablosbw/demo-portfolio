@@ -57,6 +57,11 @@ class DepositCreateView(generics.CreateAPIView):
         data["transaction_type"] = Transaction.DEPOSIT
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+        if not User.objects.filter(pk=data.get("user_id"), is_deleted=False).exists():
+            return Response(
+                {"user_id": ["Invalid user ID."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -77,6 +82,29 @@ class WithdrawCreateView(generics.CreateAPIView):
         data["transaction_type"] = Transaction.WITHDRAW
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+        if not User.objects.filter(pk=data.get("user_id"), is_deleted=False).exists():
+            return Response(
+                {"user_id": ["Invalid user ID."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+@extend_schema(
+    summary="Get all transactions for a user",
+    description="Given a user, gets all transactions.",
+    request=DepositSerializer,
+    responses={201: DepositSerializer},
+)
+class TransactionListView(generics.ListAPIView):
+    serializer_class = DepositSerializer
+
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        
+        if not User.objects.filter(pk=user_id, is_deleted=False).exists():
+            return Transaction.objects.none()
+        return Transaction.objects.filter(user_id=user_id)
+
+
