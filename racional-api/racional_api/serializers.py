@@ -16,3 +16,65 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at", "money"]
 
+
+class DepositSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(write_only=True)
+    execution_date = serializers.DateField()
+    
+    class Meta:
+        model = Transaction
+        fields = [
+            "id",
+            "user_id",
+            "transaction_type",
+            "amount",
+            "created_at",
+            "updated_at",
+            "execution_date"
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def _validate(self, data):
+        amount = data.get("amount", 0)
+        if amount <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero.")
+        
+        transaction_type = data.get("transaction_type")
+        if transaction_type.lower() not in ("deposit", "withdraw"):
+            raise serializers.ValidationError("Invalid transaction type. Must be 'deposit' or 'withdraw'.")
+        
+        return data
+
+    def _normalize_transaction_type(self, transaction_type):
+        if not transaction_type:
+            return None
+
+        o = transaction_type.lower()
+        if o == "deposit":
+            return Transaction.DEPOSIT
+        elif o == "withdraw":
+            return Transaction.WITHDRAW
+
+        raise serializers.ValidationError("Invalid transaction type.")
+
+    def create(self, data):
+        validated_data =self._validate(data)
+        user_id = validated_data.pop("user_id")
+        transaction_type_raw = validated_data.pop("transaction_type", None)
+        if transaction_type_raw is None:
+            raise serializers.ValidationError("transaction_type is required.")
+
+        transaction_type_norm = self._normalize_transaction_type(transaction_type_raw)
+        user = User.objects.get(pk=user_id)
+        amount = validated_data.get("amount", 0)
+        if transaction_type_norm == Transaction.DEPOSIT:
+            user.money += amount
+        elif transaction_type_norm == Transaction.WITHDRAW:
+            user.money -= amount
+
+        user.save(update_fields=["money", "updated_at"])
+        return Transaction.objects.create(
+            user=user,
+            transaction_type=transaction_type_norm,
+            **validated_data,
+        )

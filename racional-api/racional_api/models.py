@@ -28,3 +28,24 @@ class User(SoftDeleteModel):
         return f"{self.first_name} {self.last_name}"
 
 
+class Transaction(SoftDeleteModel):
+    DEPOSIT = "DEPOSIT"
+    WITHDRAW = "WITHDRAW"
+    TRANSACTION_TYPES = [
+        (DEPOSIT, "Deposit"),
+        (WITHDRAW, "Withdraw"),
+    ]
+    user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="transaction",
+    )
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    
+    execution_date = models.DateField(default=None)
+    
+    class Meta(SoftDeleteModel.Meta):
+        ordering = ["-created_at"]
