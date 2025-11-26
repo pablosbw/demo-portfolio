@@ -6,3 +6,5 @@ psycopg2-binary
 python-dotenv
 drf-spectacular
 faker
+pytest
+pytest-django
