@@ -14,7 +14,8 @@ dict_simbol_names = {
     "NVDA": "NVIDIA Corporation",
     "JPM": "JPMorgan Chase & Co.",
     "V": "Visa Inc.",
-    "DIS": "The Walt Disney Company"
+    "DIS": "The Walt Disney Company",
+    "CASH": "CASH",
 }
 
 
@@ -38,7 +39,10 @@ class Command(BaseCommand):
             current_date = start_date
             
             while current_date <= end_date:
-                value = value + fake.random_int(min=-2, max=3)
+                if symbol == "CASH":
+                    value = 1.0
+                else:
+                    value = value + fake.random_int(min=-2, max=3)
                 aware_date = timezone.make_aware(current_date)
                 StockPrice.objects.create(
                     stock=stock,
@@ -46,3 +50,4 @@ class Command(BaseCommand):
                     date=aware_date
                 )
                 current_date += timedelta(days=1)
+        self.stdout.write(self.style.SUCCESS("Example stocks created!"))
