@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Stock, StockPrice, User, Transaction, Order, Portfolio, PortfolioComponent, Stock
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from django.db.models import Sum, Q
 
 class UserSerializer(serializers.ModelSerializer):
@@ -217,3 +217,123 @@ class PortfolioCreateSerializer(serializers.ModelSerializer):
         )
 
         return portfolio
+
+
+class PortfolioMetadataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Portfolio
+        fields = ["id", "name", "description", "risk"]
+        read_only_fields = ["id"]
+
+class PortfolioInvestSerializer(serializers.Serializer):
+    user_id = serializers.PrimaryKeyRelatedField(
+        source="user",
+        queryset=User.objects.filter(is_deleted=False),
+        write_only=True,
+    )
+    portfolio_id = serializers.PrimaryKeyRelatedField(
+        source="portfolio",
+        queryset=Portfolio.objects.filter(is_deleted=False),
+        write_only=True,
+    )
+    amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+    execution_date = serializers.DateField(required=False)
+
+    def validate(self, attrs):
+        user = attrs["user"]
+        portfolio = attrs["portfolio"]
+
+        if user.money < attrs["amount"]:
+            raise serializers.ValidationError("User does not have enough money to invest that amount.")
+
+        components = PortfolioComponent.objects.filter(
+            portfolio=portfolio,
+            is_deleted=False,
+        ).select_related("stock")
+
+        if not components.exists():
+            raise serializers.ValidationError("Portfolio has no components defined.")
+
+        attrs["_components"] = list(components)
+        return attrs
+
+    def create(self, validated_data):
+        user = validated_data["user"]
+        portfolio = validated_data["portfolio"]
+        amount = validated_data["amount"]
+        execution_date = validated_data.get("execution_date") or date.today()
+        components = validated_data["_components"]
+
+        total_weight = sum((c.weight for c in components), Decimal("0"))
+        if total_weight <= 0:
+            raise serializers.ValidationError("Total weight of portfolio components must be greater than 0.")
+
+        orders = []
+        remaining_amount = amount
+
+        for index, component in enumerate(components):
+            # Normalize weight in case total_weight != 1 exactly
+            weight_fraction = component.weight / total_weight
+
+            # Last component gets whatever is left to avoid rounding leftovers
+            if index < len(components) - 1:
+                alloc = (amount * weight_fraction).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+                remaining_amount -= alloc
+            else:
+                alloc = remaining_amount
+
+            stock_price = StockPrice.objects.filter(
+                stock=component.stock,
+                date__lte=execution_date,
+            ).order_by('-date').first()
+            price = Decimal(str(stock_price.value)) if stock_price else Decimal("0")
+            if price <= 0:
+                continue
+
+            # Quantity with 4 decimal places
+            quantity = (alloc / price).quantize(Decimal("0.0001"), rounding=ROUND_DOWN)
+            if quantity <= 0:
+                continue
+
+            order = Order.objects.create(
+                user=user,
+                asset_type=Order.ASSET_STOCK,
+                side=Order.BUY,
+                stock=component.stock,
+                portfolio=portfolio,
+                quantity=quantity,
+                execution_price=price,
+                execution_date=execution_date,
+            )
+            orders.append(order)
+
+        user.money -= amount
+        user.save(update_fields=["money"])
+
+        return {
+            "user_id": user.id,
+            "portfolio_id": portfolio.id,
+            "amount_invested": amount,
+            "orders": orders,
+        }
+
+    def to_representation(self, instance):
+        return {
+            "user_id": instance["user_id"],
+            "portfolio_id": instance["portfolio_id"],
+            "amount_invested": str(instance["amount_invested"]),
+            "orders": [
+                {
+                    "order_id": o.id,
+                    "symbol": o.stock.symbol,
+                    "quantity": str(o.quantity),
+                    "execution_price": str(o.execution_price),
+                    "value": str(o.quantity * o.execution_price),
+                }
+                for o in instance["orders"]
+            ],
+        }

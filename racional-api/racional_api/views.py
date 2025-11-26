@@ -1,5 +1,5 @@
-from .models import Portfolio, Transaction, User
-from .serializers import DepositSerializer, PortfolioCreateSerializer, StockOrderSerializer, UserSerializer
+from .models import Order, Portfolio, Transaction, User
+from .serializers import DepositSerializer, PortfolioCreateSerializer, PortfolioInvestSerializer, PortfolioMetadataSerializer, StockOrderSerializer, UserSerializer
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.response import Response
@@ -193,4 +193,39 @@ class PortfolioListView(generics.ListAPIView):
         if not User.objects.filter(pk=user_id, is_deleted=False).exists():
             return Portfolio.objects.none()
         return Portfolio.objects.filter(user_id=user_id)
+
+
+@extend_schema(
+    summary="Edit portfolio metadata",
+    description=(
+        "Edita la información de un portafolio existente: nombre, descripción y nivel de riesgo. "
+        "Este endpoint **no** modifica la composición (stocks/pesos) del portafolio."
+    ),
+    request=PortfolioMetadataSerializer,
+    responses={200: PortfolioMetadataSerializer},
+)
+class PortfolioMetadataUpdateView(generics.RetrieveUpdateAPIView):
+    # TODO: Implement portfolio composition modification.
+    """
+    GET    /api/portfolios/<id>/  Obtiene los metadatos del portafolio
+    PUT    /api/portfolios/<id>/  Reemplaza los metadatos (name, description, risk)
+    PATCH  /api/portfolios/<id>/  Actualiza los metadatos parcialmente
+    """
+    queryset = Portfolio.objects.filter(is_deleted=False)
+    serializer_class = PortfolioMetadataSerializer
+
+@extend_schema(
+    summary="Invest an amount of money into a portfolio",
+    description=(
+        "Recibe un usuario, un portafolio y un monto a invertir. "
+        "Distribuye el monto entre las acciones del portafolio según sus pesos, "
+        "y crea órdenes de compra (BUY) por cada acción correspondiente. "
+        "Las órdenes creadas quedan asociadas al portafolio."
+    ),
+    request=PortfolioInvestSerializer,
+    responses={201: PortfolioInvestSerializer},
+)
+class PortfolioInvestView(generics.CreateAPIView):
+    serializer_class = PortfolioInvestSerializer
+    queryset = Order.objects.none()
 

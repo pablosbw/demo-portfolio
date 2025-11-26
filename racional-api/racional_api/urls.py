@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PortfolioCreateView, PortfolioListView, StockOrderCreateView, TransactionListView, WithdrawCreateView, DepositCreateView, UserDetailView, UserListCreateView
+from .views import PortfolioCreateView, PortfolioInvestView, PortfolioListView, PortfolioMetadataUpdateView, StockOrderCreateView, TransactionListView, WithdrawCreateView, DepositCreateView, UserDetailView, UserListCreateView
 
 
 user_urls = [
@@ -10,21 +10,25 @@ user_urls = [
 transaction_urls = [
     path("transactions/deposit/", DepositCreateView.as_view(), name="deposit-create"),
     path("transactions/withdraw/", WithdrawCreateView.as_view(), name="withdraw-create"),
-    path("transactions/<int:user_id>/", TransactionListView.as_view(), name="transaction-list"),
+    path("users/<int:user_id>/transactions/", TransactionListView.as_view(), name="transaction-list"),
 ]
 
 orders_urls = [
     path("orders/stocks/", StockOrderCreateView.as_view(), name="stock-order-create"),
 ]
 
-stocks_urls = [
+portfolios_urls = [
     path("portfolios/", PortfolioCreateView.as_view(), name="portfolio-create"),
-    path("portfolios/<int:user_id>/", PortfolioListView.as_view(), name="portfolio-list"),
+    path("portfolios/<int:pk>/", PortfolioMetadataUpdateView.as_view(), name="portfolio-metadata-update"),
+    path("users/<int:user_id>/portfolios/", PortfolioListView.as_view(), name="portfolio-list"),
+    path( "portfolios/invest/", PortfolioInvestView.as_view(), name="portfolio-invest",
+    ),
+
 ]
 
 urlpatterns = [
     *user_urls,
     *transaction_urls, 
     *orders_urls,
-    *stocks_urls
+    *portfolios_urls
 ]
