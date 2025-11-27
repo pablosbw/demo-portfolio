@@ -1,10 +1,11 @@
-from .models import Order, Portfolio, Transaction, User
+from .models import Order, Portfolio, Transaction, User, Stock
 from .serializers import DepositSerializer, PortfolioCreateSerializer, PortfolioInvestSerializer, PortfolioMetadataSerializer, StockOrderSerializer, UserSerializer
 from rest_framework import generics
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.response import Response
 from rest_framework import status
 from decimal import Decimal, InvalidOperation
+from django.db.models import Sum, Q
 
 
 @extend_schema_view(
@@ -42,6 +43,38 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def put(self, request, *args, **kwargs):
         return self.partial_update(request, *args, **kwargs)
 
+    def delete(self, request, *args, **kwargs):
+        user = self.get_object()
+        stocks_id = Stock.objects.filter(is_deleted=False).values_list('pk', flat=True)
+        stock_quantities = {}
+        for stock_id in stocks_id:
+            totals = Order.objects.filter(user=user, stock_id=stock_id, is_deleted=False).aggregate(
+                total_bought=Sum('quantity', filter=Q(side=Order.BUY)),
+                total_sold=Sum('quantity', filter=Q(side=Order.SELL)),
+            )
+            total_bought = totals.get('total_bought') or 0
+            total_sold = totals.get('total_sold') or 0
+            net_amount = total_bought - total_sold
+
+            if net_amount > 0:
+                stock_name = Stock.objects.get(pk=stock_id).symbol
+                stock_quantities[stock_name] = str(net_amount)
+
+        if stock_quantities:
+            return Response(
+                {"detail": f"User has associated stock orders and cannot be deleted. You have the following stocks with remaining quantities: {stock_quantities}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if user.money > 0:
+            return Response(
+                {"detail": "User has remaining money and cannot be deleted. Total money remaining: " + str(user.money)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.is_deleted = True
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 @extend_schema(
     summary="Register a cash deposit",
