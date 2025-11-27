@@ -129,10 +129,12 @@ class TransactionListView(generics.ListAPIView):
 
     def get_queryset(self):
         user_id = self.kwargs['user_id']
-        
+        if not user_id:
+            return Transaction.objects.none()
+
         if not User.objects.filter(pk=user_id, is_deleted=False).exists():
             return Transaction.objects.none()
-        return Transaction.objects.filter(user_id=user_id)
+        return Transaction.objects.filter(user_id=user_id).order_by('-created_at')
 
 
 @extend_schema(
@@ -189,10 +191,12 @@ class PortfolioListView(generics.ListAPIView):
 
     def get_queryset(self):
         user_id = self.kwargs['user_id']
-        
+        if not user_id:
+            return Transaction.objects.none()
+
         if not User.objects.filter(pk=user_id, is_deleted=False).exists():
             return Portfolio.objects.none()
-        return Portfolio.objects.filter(user_id=user_id)
+        return Portfolio.objects.filter(user_id=user_id, is_deleted=False)
 
 
 @extend_schema(
