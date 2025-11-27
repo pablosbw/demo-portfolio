@@ -1,9 +1,10 @@
-from .models import Order, Portfolio, Transaction, User, Stock
-from .serializers import DepositSerializer, PortfolioCreateSerializer, PortfolioInvestSerializer, PortfolioMetadataSerializer, StockOrderSerializer, UserSerializer
-from rest_framework import generics
+from collections import defaultdict
+from .models import Order, Portfolio, Transaction, User, Stock, StockPrice
+from .serializers import DepositSerializer, PortfolioCreateSerializer, PortfolioInvestSerializer, PortfolioMetadataSerializer, PortfolioTotalSerializer, StockOrderSerializer, UserSerializer
+from rest_framework import generics, status
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView   
 from decimal import Decimal, InvalidOperation
 from django.db.models import Sum, Q
 
@@ -266,3 +267,95 @@ class PortfolioInvestView(generics.CreateAPIView):
     serializer_class = PortfolioInvestSerializer
     queryset = Order.objects.none()
 
+
+@extend_schema(
+    summary="Get total portfolio value for a user",
+    description=(
+        "Calcula el valor actual del portafolio de un usuario. "
+        "Suma el valor de todas las posiciones en acciones (BUY menos SELL) "
+        "utilizando el precio actual de cada acción, y opcionalmente el efectivo "
+        "derivado de depósitos y retiros."
+    ),
+    responses={200: PortfolioTotalSerializer},
+)
+class UserPortfolioTotalView(APIView):
+    """
+    GET /api/users/<int:user_id>/portfolio/total/
+    """
+
+    def get(self, request, user_id: int):
+        try:
+            user = User.objects.get(pk=user_id, is_deleted=False)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # 1) Compute cash from Transactions (DEPOSIT - WITHDRAW)
+
+        cash = Decimal("0.00")
+        transactions = Transaction.objects.filter(user=user, is_deleted=False)
+        for t in transactions:
+            if t.transaction_type == Transaction.DEPOSIT and t.amount:
+                cash += t.amount
+            elif t.transaction_type == Transaction.WITHDRAW and t.amount:
+                cash -= t.amount
+
+        # 2) Aggregate stock positions from Orders
+        orders = (
+            Order.objects.filter(
+                user=user,
+                asset_type=Order.ASSET_STOCK,
+                is_deleted=False,
+            )
+            .select_related("stock")
+            .order_by("execution_date", "created_at")
+        )
+
+        qty_by_stock = defaultdict(lambda: Decimal("0.0000"))
+
+        for o in orders:
+            if not o.quantity or not o.stock:
+                continue
+
+            factor = Decimal("1") if o.side == Order.BUY else Decimal("-1")
+            qty_by_stock[o.stock] += factor * o.quantity
+            
+            # Discount the cash used in BUY orders
+            if o.side == Order.BUY:
+                cash -= o.quantity * o.execution_price
+
+        positions = []
+        stocks_total = Decimal("0.00")
+
+        for stock, qty in qty_by_stock.items():
+            if qty <= 0:
+                continue
+            
+            price = StockPrice.objects.filter(stock=stock).order_by('-date').first()
+            price = Decimal(str(price.value))
+            value = (qty * price).quantize(Decimal("0.01"))
+
+            positions.append(
+                {
+                    "symbol": stock.symbol,
+                    "quantity": qty.quantize(Decimal("0.0001")),
+                    "price": price.quantize(Decimal("0.0001")),
+                    "value": value,
+                }
+            )
+            stocks_total += value
+
+        portfolio_total = (cash + stocks_total).quantize(Decimal("0.01"))
+
+        data = {
+            "user_id": user.pk,
+            "cash": cash.quantize(Decimal("0.01")),
+            "stocks_total": stocks_total.quantize(Decimal("0.01")),
+            "portfolio_total": portfolio_total,
+            "positions": positions,
+        }
+
+        serializer = PortfolioTotalSerializer(data)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -337,3 +337,18 @@ class PortfolioInvestSerializer(serializers.Serializer):
                 for o in instance["orders"]
             ],
         }
+
+
+class PositionSerializer(serializers.Serializer):
+    symbol = serializers.CharField()
+    quantity = serializers.DecimalField(max_digits=18, decimal_places=4)
+    price = serializers.DecimalField(max_digits=18, decimal_places=4)
+    value = serializers.DecimalField(max_digits=18, decimal_places=4)
+
+
+class PortfolioTotalSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField()
+    cash = serializers.DecimalField(max_digits=18, decimal_places=2)
+    stocks_total = serializers.DecimalField(max_digits=18, decimal_places=2)
+    portfolio_total = serializers.DecimalField(max_digits=18, decimal_places=2)
+    positions = PositionSerializer(many=True)
