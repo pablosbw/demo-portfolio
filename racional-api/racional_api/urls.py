@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PortfolioCreateView, PortfolioInvestView, PortfolioListView, PortfolioMetadataUpdateView, StockOrderCreateView, TransactionListView, UserPortfolioTotalView, WithdrawCreateView, DepositCreateView, UserDetailView, UserListCreateView
+from .views import PortfolioCreateView, PortfolioInvestView, PortfolioListView, PortfolioMetadataUpdateView, StockOrderCreateView, TransactionListView, UserLastMovementsView, UserPortfolioTotalView, WithdrawCreateView, DepositCreateView, UserDetailView, UserListCreateView
 
 
 user_urls = [
@@ -9,6 +9,11 @@ user_urls = [
         "users/<int:user_id>/portfolio/total/",
         UserPortfolioTotalView.as_view(),
         name="user-portfolio-total",
+    ),
+        path(
+        "users/<int:user_id>/movements/",
+        UserLastMovementsView.as_view(),
+        name="user-last-movements",
     ),
 ]
 

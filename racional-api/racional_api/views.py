@@ -1,6 +1,6 @@
 from collections import defaultdict
 from .models import Order, Portfolio, Transaction, User, Stock, StockPrice
-from .serializers import DepositSerializer, PortfolioCreateSerializer, PortfolioInvestSerializer, PortfolioMetadataSerializer, PortfolioTotalSerializer, StockOrderSerializer, UserSerializer
+from .serializers import DepositSerializer, MovementSerializer, PortfolioCreateSerializer, PortfolioInvestSerializer, PortfolioMetadataSerializer, PortfolioTotalSerializer, StockOrderSerializer, UserSerializer
 from rest_framework import generics, status
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.response import Response
@@ -358,4 +358,106 @@ class UserPortfolioTotalView(APIView):
         }
 
         serializer = PortfolioTotalSerializer(data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="Get last movements of a user",
+    description=(
+        "Devuelve los últimos movimientos de un usuario, combinando depósitos, retiros "
+        "y órdenes de compra/venta (stocks y portafolios), ordenados desde el más reciente."
+        "Se puede incluir en la url un parámetro opcional `?limit=` para limitar la cantidad de movimientos devueltos. "
+        "Por defecto es 10."
+    ),
+    responses={200: MovementSerializer(many=True)},
+)
+class UserLastMovementsView(APIView):
+    """
+    GET /api/users/<int:user_id>/movements/?limit=10
+    """
+
+    def get(self, request, user_id: int):
+        try:
+            user = User.objects.get(pk=user_id, is_deleted=False)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            limit = int(request.query_params.get("limit", 10))
+        except ValueError:
+            limit = 10
+        if limit <= 0:
+            limit = 10
+
+        movements = []
+
+        # 1) Transactions: DEPOSIT / WITHDRAW
+        transactions = Transaction.objects.filter(
+            user=user,
+            is_deleted=False,
+        ).order_by("-created_at")
+
+        for t in transactions:
+            movements.append(
+                {
+                    "type": "TRANSACTION",
+                    "subtype": t.transaction_type,
+                    "asset_type": None,
+                    "symbol": None,
+                    "portfolio_id": None,
+                    "amount": t.amount,
+                    "quantity": None,
+                    "execution_price": None,
+                    "value": t.amount,
+                    "date": t.execution_date or t.created_at.date(),
+                    "created_at": t.created_at,
+                }
+            )
+
+        # 2) Orders: BUY / SELL of STOCK / PORTFOLIO
+        orders = (
+            Order.objects.filter(
+                user=user,
+                is_deleted=False,
+            )
+            .select_related("stock", "portfolio")
+            .order_by("-created_at")
+        )
+
+        for o in orders:
+            symbol = o.stock.symbol if (o.asset_type == Order.ASSET_STOCK and o.stock) else None
+            portfolio_id = o.portfolio.pk if (o.asset_type == Order.ASSET_PORTFOLIO and o.portfolio) else None
+
+            if o.quantity is not None and o.execution_price is not None:
+                value = (o.quantity * o.execution_price).quantize(Decimal("0.01"))
+            else:
+                value = None
+
+            movements.append(
+                {
+                    "type": "ORDER",
+                    "subtype": o.side,
+                    "asset_type": o.asset_type,
+                    "symbol": symbol,
+                    "portfolio_id": portfolio_id,
+                    "amount": None,
+                    "quantity": o.quantity,
+                    "execution_price": o.execution_price,
+                    "value": value,
+                    "date": o.execution_date or o.created_at.date(),
+                    "created_at": o.created_at,
+                }
+            )
+
+        # 3) Order all movements by created_at DESC and apply limit
+        movements_sorted = sorted(
+            movements,
+            key=lambda m: m["created_at"],
+            reverse=True,
+        )[:limit]
+
+        serializer = MovementSerializer(movements_sorted, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

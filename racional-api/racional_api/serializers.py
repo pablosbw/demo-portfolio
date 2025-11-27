@@ -352,3 +352,17 @@ class PortfolioTotalSerializer(serializers.Serializer):
     stocks_total = serializers.DecimalField(max_digits=18, decimal_places=2)
     portfolio_total = serializers.DecimalField(max_digits=18, decimal_places=2)
     positions = PositionSerializer(many=True)
+
+
+class MovementSerializer(serializers.Serializer):
+    type = serializers.CharField()
+    subtype = serializers.CharField()
+    asset_type = serializers.CharField(allow_null=True)
+    symbol = serializers.CharField(allow_null=True)
+    portfolio_id = serializers.IntegerField(allow_null=True)
+    amount = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
+    quantity = serializers.DecimalField(max_digits=18, decimal_places=4, allow_null=True)
+    execution_price = serializers.DecimalField(max_digits=18, decimal_places=4, allow_null=True)
+    value = serializers.DecimalField(max_digits=18, decimal_places=2, allow_null=True)
+    date = serializers.DateField()
+    created_at = serializers.DateTimeField()
