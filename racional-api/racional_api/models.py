@@ -23,6 +23,8 @@ class User(SoftDeleteModel):
     last_name = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=50)
     email = models.EmailField(unique=True)
+    # TODO: Instead of using "money" field, create a I could create a function that sums all deposits - withdraws
+    # Or mayba a Wallet model that handles this more elegantly
     money = models.DecimalField(max_digits=14, decimal_places=2, default=0.0)
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -55,6 +57,7 @@ class Stock(SoftDeleteModel):
     name = models.CharField(max_length=200)
 
 class StockPrice(SoftDeleteModel):
+    #TODO: Change to DecimalField
     value = models.FloatField(default=1.0)
     date = models.DateTimeField()
     stock = models.ForeignKey(
@@ -80,6 +83,7 @@ class Portfolio(SoftDeleteModel):
         (HIGH, "High"),
     ]
     risk = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    #TODO: Could add a versioning for history tracking
 
 
 class PortfolioComponent(SoftDeleteModel):
@@ -150,3 +154,6 @@ class Order(SoftDeleteModel):
 
     class Meta(SoftDeleteModel.Meta):
         ordering = ["-created_at"]
+        
+        
+##TODO: include a Positions table, to keep track of user holdings
