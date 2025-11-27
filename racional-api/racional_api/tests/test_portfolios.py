@@ -12,6 +12,8 @@ from racional_api.models import (
     StockPrice,
     Portfolio,
     PortfolioComponent,
+    Transaction,
+    Order,
 )
 
 @pytest.fixture
@@ -147,3 +149,43 @@ def test_update_portfolio_nonexistent_returns_404(api_client):
     url = reverse("portfolio-metadata-update", args=[99999])
     resp = api_client.patch(url, {"name": "X"}, format="json")
     assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+@pytest.mark.django_db
+def test_user_portfolio_total_values(api_client, user, stocks_and_prices):
+    s1, s2 = stocks_and_prices
+
+    # create a prior BUY order (older than latest price) - user bought 10 * 10.00
+    Order.objects.create(
+        user=user,
+        stock=s1,
+        side=Order.BUY,
+        quantity=Decimal("10"),
+        execution_price=Decimal("10.00"),
+        execution_date=date.today() - timedelta(days=2),
+        asset_type=Order.ASSET_STOCK,
+    )
+
+    # deposit 1000.00
+    Transaction.objects.create(
+        user=user,
+        transaction_type=Transaction.DEPOSIT,
+        amount=Decimal("1000.00"),
+        execution_date=date.today(),
+    )
+
+    url = reverse("user-portfolio-total", args=[user.pk])
+    resp = api_client.get(url, format="json")
+    assert resp.status_code == status.HTTP_200_OK
+
+    # Cash should be deposit - cost_of_buy = 1000 - (10 * 10) = 900.00
+    assert Decimal(resp.data["cash"]) == Decimal("900.00")
+
+    # stocks_total uses latest price for s1 (fixture set to 11.00), value = 10 * 11 = 110.00
+    assert Decimal(resp.data["stocks_total"]) == Decimal("110.00")
+
+    # portfolio_total = cash + stocks_total = 900 + 110 = 1010.00
+    assert Decimal(resp.data["portfolio_total"]) == Decimal("1010.00")
+
+    # positions should include the AAA position with quantity 10
+    positions = resp.data["positions"]
+    assert any(p["symbol"] == s1.symbol and Decimal(p["quantity"]) == Decimal("10") for p in positions)

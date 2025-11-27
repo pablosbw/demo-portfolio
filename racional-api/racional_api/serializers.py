@@ -265,7 +265,7 @@ class PortfolioInvestSerializer(serializers.Serializer):
         user = validated_data["user"]
         portfolio = validated_data["portfolio"]
         amount = validated_data["amount"]
-        execution_date = validated_data.get("execution_date") or date.today()
+        execution_date = validated_data.get("execution_date")
         components = validated_data["_components"]
 
         total_weight = sum((c.weight for c in components), Decimal("0"))
