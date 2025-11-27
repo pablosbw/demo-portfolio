@@ -1,0 +1,35 @@
+# Frontend
+racional-app/node_modules/
+racional-app/dist/
+racional-app/.env.local
+racional-app/.env.*.local
+racional-app/.vite/
+
+# Backend
+racional-api/venv/
+racional-api/.venv/
+racional-api/__pycache__/
+racional-api/*.pyc
+racional-api/*.pyo
+racional-api/*.egg-info/
+racional-api/db.sqlite3
+racional-api/.env
+racional-api/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

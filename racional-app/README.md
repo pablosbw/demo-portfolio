@@ -1,91 +1,99 @@
-# Racional Investment Evolution – Frontend Challenge
+# Racional App – Frontend
 
-Este proyecto implementa una visualización interactiva en tiempo real de la evolución del portafolio de un usuario, utilizando **Firestore**, **React**, **Vite** y **Chart.js**.  
-El objetivo es reproducir una experiencia tipo fintech, con foco en claridad, diseño y UX.
+Interfaz interactiva para visualizar la evolución del portafolio de inversiones en tiempo real.
 
-## Tecnologías utilizadas
+## Características
 
-- **React + Vite** – Frontend rápido y moderno.
-- **Firebase Firestore** – Lectura en tiempo real del documento `investmentEvolutions/user1`.
-- **Chart.js + react-chartjs-2** – Visualizaciones interactivas y personalizadas.
+- **Gráficos Interactivos** – Chart.js con tooltips personalizados
+- **Tiempo Real** – Sincronización con Firestore
+- **Diseño Responsivo** – 50% del ancho en desktop, adaptable en mobile
+- **Formatos Personalizados** – Dinero ($), porcentajes (%)
 
-## Estructura del proyecto
+## Estructura
 
 ```
 src/
-  components/
-    InvestmentEvolutionChart.jsx
-    PortfolioValueVsInvestedChart.jsx
-    ReturnChart.jsx
-  hooks/
-    useInvestmentEvolution.js
-  utils.js
-  firebase.js
-  App.jsx
-  index.css
+├── components/
+│   ├── InvestmentEvolutionChart.jsx      # Orquestador de gráficos
+│   ├── PortfolioValueVsInvestedChart.jsx # Gráfico 1
+│   └── ReturnChart.jsx                   # Gráfico 2
+├── hooks/
+│   └── useInvestmentEvolution.js         # Listener de Firestore
+├── App.jsx
+├── firebase.js
+├── style.css
+└── main.jsx
 ```
 
-## Funcionalidad principal
+## Instalación
 
-### Escucha de Firestore en tiempo real
-
-El frontend se conecta automáticamente a:
-
-```
-investmentEvolutions/user1
+```bash
+npm install
+npm run dev
 ```
 
-El documento contiene un array con la evolución diaria del portafolio:
+## Variables de Entorno
+
+Copia `.env.local.template` a `.env.local`:
+
+```bash
+cp .env.local.template .env.local
+```
+
+Completa con tus credenciales de Firebase:
+
+```env
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_DATABASE_URL=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+```
+
+## 📊 Datos de Firestore
+
+La aplicación escucha en `investmentEvolutions/user1`:
 
 ```json
 {
   "array": [
     {
-      "dailyReturn": 0,
-      "contributions": 1000000,
       "date": { "seconds": 1546311600, "nanoseconds": 0 },
-      "portfolioIndex": 100,
-      "portfolioValue": 1000000
+      "contributions": 1000000,
+      "portfolioValue": 1050000,
+      "dailyReturn": 50000,
+      "portfolioIndex": 105
     }
   ]
 }
 ```
 
-### Visualizaciones
+## 📈 Gráficos
 
-**Gráfico 1 — Valor del portafolio vs Total invertido**  
-**Gráfico 2 — porcentaje de retorno**
+### Gráfico 1: Valor del Portafolio vs Total Invertido
 
-Incluyen:
+- Línea azul: Valor del portafolio
+- Línea naranja punteada: Total invertido
+- Área sombreada para el portafolio
 
-- Tooltip con formatos `$X.XM`, `$Xk`, `%`
-- Línea vertical punteada siguiendo al puntero
-- Líneas suavizadas
+### Gráfico 2: Porcentaje de Retorno
 
-## Instalación y ejecución
+- Línea verde: % de retorno calculado
 
-### 1. Instalar dependencias
+## Estilos
 
-```bash
-npm install
-```
+Todos los estilos están en `style.css` con clases reutilizables:
 
-### 2. Ejecutar entorno de desarrollo
+- `.app-root` – Contenedor principal
+- `.app-card` – Tarjeta central (50% ancho)
+- `.chart-root` – Contenedor de gráficos
+- `.chart-box` – Cada gráfico individual
 
-```bash
-npm run dev
-```
+## 🔧 Tecnologías
 
-### 3. Abrir en navegador
-
-Generalmente:
-
-```
-http://localhost:5173
-```
-
-## Uso de I.A. en el desarrollo
-
-- Comparación de librerías de gráficos y decisiones técnicas.
-- Generación rápida de estructuras de componentes.
-- Sugerencias de estilos, UX y diseño fintech.
+- **React 18** – UI library
+- **Vite** – Build tool rápido
+- **Chart.js** – Gráficos
+- **Firebase** – Firestore para datos en vivo
