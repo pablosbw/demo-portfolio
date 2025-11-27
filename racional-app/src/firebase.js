@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyArGiRgGd2MfE65_9sjE2QX49gt1sP0GmA",
-  authDomain: "racional-exam.firebaseapp.com",
-  databaseURL: "https://racional-exam.firebaseio.com",
-  projectId: "racional-exam",
-  storageBucket: "racional-exam.appspot.com",
-  messagingSenderId: "669314004725",
-  appId: "1:669314004725:web:48bd14a97d7db43c91f7bc",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
